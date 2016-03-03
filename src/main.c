@@ -674,6 +674,7 @@ tree_view_var_on_row_activated(GtkTreeView * tree_view_var,
   } else if (WZ_IS_VAR_OBJECT(var->type)) {
     wzobj * obj = var->val.obj;
     GtkWidget * obj_grid = var_grid_insert(vgrid, "Object Structure");
+    gtk_widget_set_margin_right(obj_grid, 3);
     int obj_row = 0, obj_col;
     obj_col = var_grid_struct_insert(obj_grid, "type", "STRING", obj_row);
     var_grid_struct_insert_entry(obj_grid, obj->type.bytes, obj_row++, obj_col);
@@ -1379,7 +1380,7 @@ main(int argc, char ** argv) {
 
   GtkWidget * window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title(GTK_WINDOW(window), "wz viewer");
-  gtk_window_set_default_size(GTK_WINDOW(window), 680, 400);
+  gtk_window_set_default_size(GTK_WINDOW(window), 700, 400);
   gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
   gtk_widget_show(window);
 
