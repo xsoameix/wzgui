@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <ctype.h>
 #include <float.h>
 #include <gtk/gtk.h>
 #include <wz/unicode.h>
@@ -1037,9 +1038,22 @@ enum {
 };
 
 int
+parse_int(int * out, char * in) {
+  int i = 0;
+  while (isdigit(* in)) i = i * 10 + * in++;
+  if (* in == '\0') return * out = i, 0;
+  return 1;
+}
+
+int
 sort_vars(const void * a, const void * b) {
-  return strcmp(((const wzvar *) a)->name.bytes,
-                ((const wzvar *) b)->name.bytes);
+  uint8_t * x = ((const wzvar *) a)->name.bytes;
+  uint8_t * y = ((const wzvar *) b)->name.bytes;
+  int m, n;
+  if (parse_int(&m, x) || parse_int(&n, y))
+    return strcmp(x, y);
+  else
+    return m - n;
 }
 
 void
@@ -1274,8 +1288,11 @@ file_tree_store_cleanup(GtkWidget * tree_view_node) {
 
 int
 sort_nodes(const void * a, const void * b) {
-  return strcmp(((const wznode *) a)->name.bytes,
-                ((const wznode *) b)->name.bytes);
+  const wznode * x = a, * y = b;
+  if (WZ_IS_NODE_FILE(x->type) ^ WZ_IS_NODE_FILE(y->type))
+    return WZ_IS_NODE_FILE(x->type) - WZ_IS_NODE_FILE(y->type);
+  else
+    return strcmp(x->name.bytes, y->name.bytes);
 }
 
 void
