@@ -335,6 +335,12 @@ button_on_toggled(GtkToggleButton * button, gpointer userdata) {
   g_rec_mutex_lock(&ao_detail->mutex);
   ao_detail->repeat = gtk_toggle_button_get_active(button);
   g_rec_mutex_unlock(&ao_detail->mutex);
+  GtkStyleContext * style_context =
+      gtk_widget_get_style_context(GTK_WIDGET(button));
+  if (ao_detail->repeat)
+    gtk_style_context_remove_class(style_context, "clean");
+  else
+    gtk_style_context_add_class(style_context, "clean");
 }
 
 gpointer
@@ -750,6 +756,7 @@ tree_view_var_on_row_activated(GtkTreeView * tree_view_var,
       GtkWidget * image = gtk_image_new_from_pixbuf(pixbuf);
       GtkStyleContext * style_context = gtk_widget_get_style_context(image);
       gtk_style_context_add_class(style_context, "var-img-data");
+      gtk_style_context_add_class(style_context, "clean");
       gtk_widget_set_margin_top(image, 3);
       gtk_widget_set_margin_left(image, 3);
       gtk_widget_set_margin_right(image, 3);
@@ -918,6 +925,9 @@ tree_view_var_on_row_activated(GtkTreeView * tree_view_var,
 
         GtkWidget * button = gtk_toggle_button_new();
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), FALSE);
+        gtk_button_set_relief(GTK_BUTTON(button), GTK_RELIEF_NONE);
+        GtkStyleContext * style_context = gtk_widget_get_style_context(button);
+        gtk_style_context_add_class(style_context, "var-ao-data");
         gtk_widget_set_margin_left(button, 3);
         gtk_widget_show(button);
         gtk_grid_attach(GTK_GRID(ao_grid), button, ao_col, ao_row++, 1, 1);
@@ -1441,6 +1451,13 @@ main(int argc, char ** argv) {
       "  border-width: 2px;\n"
       "  border-color: #888;\n"
       "  border-style: outset;\n"
+      "}\n"
+      "GtkToggleButton.var-ao-data.clean {\n"
+      "  background-image: none;\n"
+      "  box-shadow: none;\n"
+      "  text-shadow: none;\n"
+      "  icon-shadow: none;\n"
+      "  border-image: none;\n"
       "}\n";
   gtk_css_provider_load_from_data(css_provider, css_provider_data, -1, NULL);
   GdkDisplay * display = gdk_display_get_default();
