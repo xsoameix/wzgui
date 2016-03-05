@@ -118,6 +118,9 @@ var_grid_destroy(GtkWidget * vgrid) {
         free(ao_detail->ms);
         free(ao_detail);
       }
+    } else if (WZ_IS_OBJ_UOL(&obj->type)) {
+      var_uol_detail * uol_detail = detail.uol;
+      free(uol_detail);
     }
   }
   char * type_detail = var_grid_get_type_detail(VAR_GRID(vgrid));
