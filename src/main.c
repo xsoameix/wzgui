@@ -1016,10 +1016,17 @@ button_on_clicked(GtkButton * button, gpointer userdata) {
     }
     wzvar * var;
     gtk_tree_model_get(model, iter, COL_VAR_DATA, &var, -1);
-    if (!WZ_IS_VAR_OBJECT(var->type) ||
-        !WZ_IS_OBJ_PROPERTY(&var->val.obj->type)) {
+    if (!WZ_IS_VAR_OBJECT(var->type)) {
       if (gtk_tree_store_remove(tree_store, iter) == TRUE)
         printf("failed to remove tree view node\n");
+      continue;
+    }
+    wzobj * obj = var->val.obj;
+    if (!WZ_IS_OBJ_PROPERTY(&obj->type) &&
+        !WZ_IS_OBJ_CANVAS(&obj->type)) {
+      if (gtk_tree_store_remove(tree_store, iter) == TRUE)
+        printf("failed to remove tree view node\n");
+      wz_free_obj(obj);
       continue;
     }
     len++;
@@ -1031,6 +1038,7 @@ button_on_clicked(GtkButton * button, gpointer userdata) {
       valid = gtk_tree_model_iter_next(model, &child_iter);
     }
   }
+  wz_free_obj(root->val.obj);
   free(stack);
   gtk_widget_destroy(paned_var);
 }
