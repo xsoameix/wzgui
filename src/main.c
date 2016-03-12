@@ -16,29 +16,6 @@ window_on_destroy(GtkWidget * window, gpointer userdata) {
   * exit = 1;
 }
 
-int
-read_file(wzfile * file, FILE * raw, wzctx * ctx) {
-  file->raw = raw, file->pos = 0;
-  if (fseek(raw, 0, SEEK_END)) return 1;
-  long size = ftell(raw);
-  if (size < 0) return 1;
-  file->size = (uint32_t) size;
-  rewind(raw);
-  if (wz_read_head(&file->head, file) ||
-      wz_read_le16(&file->ver.enc, file)) return 1;
-  if (wz_deduce_ver(&file->ver, file, ctx))
-    return wz_free_head(&file->head), 1;
-  return 0;
-}
-
-int
-open_file(wzfile * file, char * filename, wzctx * ctx) {
-  file->raw = fopen(filename, "rb");
-  if (file->raw == NULL) return perror(filename), 1;
-  if (read_file(file, file->raw, ctx)) return fclose(file->raw) != 0;
-  return 0;
-}
-
 enum {
   COL_VAR_NAME,
   COL_VAR_TYPE,
@@ -1339,7 +1316,7 @@ menu_item_open_on_activate(GtkMenuItem * menu_item, gpointer userdata) {
   wzctx * ctx = file_tree_store_get_wzctx(file_tree_store);
   wzfile * file = file_tree_store_get_wzfile(file_tree_store);
   if (wz_init_ctx(ctx)) return;
-  if (open_file(file, filename, ctx)) { wz_free_ctx(ctx); return; }
+  if (wz_open_file(file, filename, ctx)) { wz_free_ctx(ctx); return; }
   wznode * root = &file->root;
   GtkTreeIter * iter_stack = malloc(10000 * sizeof(* iter_stack));
   if (iter_stack == NULL) return;
