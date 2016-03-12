@@ -1184,7 +1184,7 @@ tree_view_node_on_row_activated(GtkTreeView * tree_view_node,
     GtkTreeIter * iter = &iter_stack[--iter_len];
     if (var == node->data.var) iter = NULL;
     if (WZ_IS_VAR_OBJECT(var->type)) {
-      if (wz_read_obj(&var->val.obj, node, file, ctx)) continue;
+      if (wz_read_obj(&var->val.obj, var, node, file, ctx)) continue;
       wzobj * obj = var->val.obj;
       if (iter != NULL) {
         char * obj_type = "";
