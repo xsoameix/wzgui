@@ -5,7 +5,6 @@
 #include <ctype.h>
 #include <float.h>
 #include <gtk/gtk.h>
-#include <wz/unicode.h>
 #include <wz/file.h>
 #include "var_grid.h"
 #include "file_tree_store.h"
@@ -29,37 +28,35 @@ void
 var_grid_destroy(GtkWidget * vgrid) {
   var_detail detail = var_grid_get_detail(VAR_GRID(vgrid));
   wzvar * var = * detail.var;
-  if (WZ_IS_VAR_INT16(var->type) ||
-      WZ_IS_VAR_INT32(var->type) ||
-      WZ_IS_VAR_INT64(var->type)) {
+  if (var->type == WZ_VAR_INT16 ||
+      var->type == WZ_VAR_INT32 ||
+      var->type == WZ_VAR_INT64) {
     var_int_detail * int_detail = detail.i;
     free(int_detail->val);
     free(int_detail);
-  } else if (WZ_IS_VAR_FLOAT32(var->type) ||
-             WZ_IS_VAR_FLOAT64(var->type)) {
+  } else if (var->type == WZ_VAR_FLT32 ||
+             var->type == WZ_VAR_FLT64) {
     var_flt_detail * flt_detail = detail.f;
     free(flt_detail->val);
     free(flt_detail);
-  } else if (WZ_IS_VAR_STRING(var->type)) {
-    wzchr * val = &var->val.str;
+  } else if (var->type == WZ_VAR_STR) {
+    wzstr * val = &var->val.str;
     var_str_detail * str_detail = detail.str;
-    if (val->enc == WZ_ENC_UTF16LE)
-      free(str_detail->bytes);
     free(str_detail);
-  } else if (WZ_IS_VAR_OBJECT(var->type)) {
+  } else if (var->type == WZ_VAR_OBJ) {
     wzobj * obj = var->val.obj;
-    if (WZ_IS_OBJ_PROPERTY(&obj->type)) {
+    if (obj->type == WZ_OBJ_LIST) {
       var_list_detail * list_detail = detail.list;
       free(list_detail->len);
       free(list_detail);
-    } else if (WZ_IS_OBJ_CANVAS(&obj->type)) {
+    } else if (obj->type == WZ_OBJ_IMG) {
       var_img_detail * img_detail = detail.img;
       free(img_detail->data);
       free(img_detail->h);
       free(img_detail->w);
       free(img_detail->len);
       free(img_detail);
-    } else if (WZ_IS_OBJ_CONVEX(&obj->type)) {
+    } else if (obj->type == WZ_OBJ_VEX) {
       var_vex_detail * vex_detail = detail.vex;
       wzvex * vex = (wzvex *) obj;
       for (uint32_t i = 0; i < vex->len; i++) {
@@ -69,12 +66,12 @@ var_grid_destroy(GtkWidget * vgrid) {
       free(vex_detail->vals);
       free(vex_detail->len);
       free(vex_detail);
-    } else if (WZ_IS_OBJ_VECTOR(&obj->type)) {
+    } else if (obj->type == WZ_OBJ_VEC) {
       var_vec_detail * vec_detail = detail.vec;
       free(vec_detail->val.x);
       free(vec_detail->val.y);
       free(vec_detail);
-    } else if (WZ_IS_OBJ_SOUND(&obj->type)) {
+    } else if (obj->type == WZ_OBJ_AO) {
       var_ao_detail * ao_detail = detail.ao;
       wzao * ao = (wzao *) obj;
       if (ao->format == WZ_AUDIO_PCM) {
@@ -95,7 +92,7 @@ var_grid_destroy(GtkWidget * vgrid) {
         free(ao_detail->ms);
         free(ao_detail);
       }
-    } else if (WZ_IS_OBJ_UOL(&obj->type)) {
+    } else if (obj->type == WZ_OBJ_UOL) {
       var_uol_detail * uol_detail = detail.uol;
       free(uol_detail);
     }
@@ -500,7 +497,7 @@ tree_view_var_on_row_activated(GtkTreeView * tree_view_var,
   gtk_widget_show(vgrid);
   gtk_container_add(GTK_CONTAINER(viewport), vgrid);
 
-  GtkWidget * grid_struct = var_grid_insert(vgrid, "Structure");
+  GtkWidget * grid_struct = var_grid_insert(vgrid, "Variable Structure");
 
   int row = 0, col;
 
@@ -508,15 +505,15 @@ tree_view_var_on_row_activated(GtkTreeView * tree_view_var,
   var_grid_struct_insert_entry(grid_struct, name_bytes, row++, col);
 
   size_t type_len = strlen(prim_type_bytes);
-  char * type_detail = malloc(4 + 1 + 1 + type_len + 1 + 1);
-  sprintf(type_detail, "0x%02"PRIx8" (%s)", var->type, prim_type_bytes);
-  type_detail[4 + 1 + 1 + type_len + 1] = '\0';
+  char * type_detail = malloc(1 + type_len + 1 + 1);
+  sprintf(type_detail, "(%s)", prim_type_bytes);
+  type_detail[1 + type_len + 1] = '\0';
   var_grid_set_type_detail(VAR_GRID(vgrid), type_detail);
 
   col = var_grid_struct_insert(grid_struct, "type", "UINT8", row);
   var_grid_struct_insert_entry(grid_struct, type_detail, row++, col);
 
-  if (WZ_IS_VAR_INT16(var->type)) {
+  if (var->type == WZ_VAR_INT16) {
     char * val = malloc(1 + 5 + 1); // sign + int
     if (val == NULL) { printf("failed to malloc\n"); return; }
     sprintf(val, "%"PRId16, (int16_t) var->val.i);
@@ -527,7 +524,7 @@ tree_view_var_on_row_activated(GtkTreeView * tree_view_var,
     var_grid_set_detail(VAR_GRID(vgrid), detail);
     col = var_grid_struct_insert_value(grid_struct, prim_type_bytes, row);
     var_grid_struct_insert_entry(grid_struct, val, row++, col);
-  } else if (WZ_IS_VAR_INT32(var->type)) {
+  } else if (var->type == WZ_VAR_INT32) {
     char * val = malloc(1 + 10 + 1); // sign + int
     if (val == NULL) { printf("failed to malloc\n"); return; }
     sprintf(val, "%"PRId32, (int32_t) var->val.i);
@@ -538,7 +535,7 @@ tree_view_var_on_row_activated(GtkTreeView * tree_view_var,
     var_grid_set_detail(VAR_GRID(vgrid), detail);
     col = var_grid_struct_insert_value(grid_struct, prim_type_bytes, row);
     var_grid_struct_insert_entry(grid_struct, val, row++, col);
-  } else if (WZ_IS_VAR_INT64(var->type)) {
+  } else if (var->type == WZ_VAR_INT64) {
     char * val = malloc(1 + 20 + 1); // sign + int
     if (val == NULL) { printf("failed to malloc\n"); return; }
     sprintf(val, "%"PRId64, (int64_t) var->val.i);
@@ -549,7 +546,7 @@ tree_view_var_on_row_activated(GtkTreeView * tree_view_var,
     var_grid_set_detail(VAR_GRID(vgrid), detail);
     col = var_grid_struct_insert_value(grid_struct, prim_type_bytes, row);
     var_grid_struct_insert_entry(grid_struct, val, row++, col);
-  } else if (WZ_IS_VAR_FLOAT32(var->type)) {
+  } else if (var->type == WZ_VAR_FLT32) {
     char * val = malloc(1 + 39 + 1 + 6 + 1); // sign, int, dot and precision
     if (val == NULL) { printf("failed to malloc\n"); return; }
     float f = (float) var->val.f;
@@ -561,7 +558,7 @@ tree_view_var_on_row_activated(GtkTreeView * tree_view_var,
     var_grid_set_detail(VAR_GRID(vgrid), detail);
     col = var_grid_struct_insert_value(grid_struct, prim_type_bytes, row);
     var_grid_struct_insert_entry(grid_struct, val, row++, col);
-  } else if (WZ_IS_VAR_FLOAT64(var->type)) {
+  } else if (var->type == WZ_VAR_FLT64) {
     char * val = malloc(1 + 309 + 1 + 6 + 1); // sign, int, dot and precision
     if (val == NULL) { printf("failed to malloc\n"); return; }
     sprintf(val, "%.6g", var->val.f);
@@ -572,46 +569,10 @@ tree_view_var_on_row_activated(GtkTreeView * tree_view_var,
     var_grid_set_detail(VAR_GRID(vgrid), detail);
     col = var_grid_struct_insert_value(grid_struct, prim_type_bytes, row);
     var_grid_struct_insert_entry(grid_struct, val, row++, col);
-  } else if (WZ_IS_VAR_STRING(var->type)) {
+  } else if (var->type == WZ_VAR_STR) {
     char * bytes = NULL;
-    wzchr * val = &var->val.str;
-    if (val->enc == WZ_ENC_ASCII) {
-      bytes = val->bytes;
-    } else if (val->enc == WZ_ENC_UTF16LE) {
-      size_t len = 0;
-      for (uint32_t i = 0; i < val->len;) {
-        uint8_t  utf16le[WZ_UTF16LE_MAX_LEN] = {0};
-        size_t   utf16le_len;
-        uint32_t code;
-        size_t   utf8_len;
-        memcpy(utf16le, val->bytes + i,
-               val->len - i < sizeof(utf16le) ?
-               val->len - i : sizeof(utf16le));
-        if (wz_utf16le_len(&utf16le_len, utf16le) ||
-            wz_utf16le_to_code(&code, utf16le) ||
-            wz_code_to_utf8_len(&utf8_len, code)) return;
-        i += (uint32_t) utf16le_len;
-        len += utf8_len;
-      }
-      bytes = malloc(len + 1);
-      char * utf8 = bytes;
-      for (uint32_t i = 0; i < val->len;) {
-        uint8_t   utf16le[WZ_UTF16LE_MAX_LEN] = {0};
-        size_t    utf16le_len;
-        uint32_t  code;
-        size_t    utf8_len;
-        memcpy(utf16le, val->bytes + i,
-               val->len - i < sizeof(utf16le) ?
-               val->len - i : sizeof(utf16le));
-        if (wz_utf16le_len(&utf16le_len, utf16le) ||
-            wz_utf16le_to_code(&code, utf16le) ||
-            wz_code_to_utf8(utf8, code) ||
-            wz_code_to_utf8_len(&utf8_len, code)) return;
-        i += (uint32_t) utf16le_len;
-        utf8 += utf8_len;
-      }
-      bytes[len] = '\0';
-    }
+    wzstr * val = &var->val.str;
+    bytes = val->bytes;
     var_str_detail * str_detail = malloc(sizeof(* str_detail));
     if (str_detail == NULL) { printf("failed to malloc\n"); return; }
     str_detail->var = var, str_detail->bytes = bytes;
@@ -651,14 +612,21 @@ tree_view_var_on_row_activated(GtkTreeView * tree_view_var,
     gtk_widget_set_hexpand(text_view, TRUE);
     gtk_widget_show(text_view);
     gtk_container_add(GTK_CONTAINER(text_window), text_view);
-  } else if (WZ_IS_VAR_OBJECT(var->type)) {
+  } else if (var->type == WZ_VAR_OBJ) {
     wzobj * obj = var->val.obj;
     GtkWidget * obj_grid = var_grid_insert(vgrid, "Object Structure");
     gtk_widget_set_margin_right(obj_grid, 3);
+    char * type = "";
+    if (obj->type == WZ_OBJ_LIST)     type = "Property";
+    else if (obj->type == WZ_OBJ_IMG) type = "Canvas";
+    else if (obj->type == WZ_OBJ_VEX) type = "Shape2D#Convex2D";
+    else if (obj->type == WZ_OBJ_VEC) type = "Shape2D#Vector2D";
+    else if (obj->type == WZ_OBJ_AO)  type = "Sound_DX8";
+    else if (obj->type == WZ_OBJ_UOL) type = "UOL";
     int obj_row = 0, obj_col;
     obj_col = var_grid_struct_insert(obj_grid, "type", "STRING", obj_row);
-    var_grid_struct_insert_entry(obj_grid, obj->type.bytes, obj_row++, obj_col);
-    if (WZ_IS_OBJ_PROPERTY(&obj->type)) {
+    var_grid_struct_insert_entry(obj_grid, type, obj_row++, obj_col);
+    if (obj->type == WZ_OBJ_LIST) {
       wzlist * list = (wzlist *) obj;
 
       char * val = malloc(10 + 1); // int
@@ -675,7 +643,7 @@ tree_view_var_on_row_activated(GtkTreeView * tree_view_var,
       obj_col = var_grid_struct_insert(obj_grid, "length", "UINT32", obj_row);
       var_grid_struct_insert_entry(obj_grid, val, obj_row++, obj_col);
       var_grid_struct_insert_label(obj_grid, info, obj_row++, obj_col);
-    } else if (WZ_IS_OBJ_CANVAS(&obj->type)) {
+    } else if (obj->type == WZ_OBJ_IMG) {
       wzimg * img = (wzimg *) obj;
 
       char * len = malloc(10 + 1); // int
@@ -746,7 +714,7 @@ tree_view_var_on_row_activated(GtkTreeView * tree_view_var,
       g_object_unref(pixbuf);
       gtk_grid_attach_next_to(GTK_GRID(img_grid), image, NULL,
                               GTK_POS_BOTTOM, 1, 1);
-    } else if (WZ_IS_OBJ_CONVEX(&obj->type)) {
+    } else if (obj->type == WZ_OBJ_VEX) {
       wzvex * vex = (wzvex *) obj;
 
       char * len = malloc(10 + 1); // int
@@ -789,7 +757,7 @@ tree_view_var_on_row_activated(GtkTreeView * tree_view_var,
                            COL_VEC_X, x,
                            COL_VEC_Y, y, -1);
       }
-    } else if (WZ_IS_OBJ_VECTOR(&obj->type)) {
+    } else if (obj->type == WZ_OBJ_VEC) {
       wzvec * vec = (wzvec *) obj;
 
       GtkTreeStore * tree_store = obj_grid_insert_vex(
@@ -818,7 +786,7 @@ tree_view_var_on_row_activated(GtkTreeView * tree_view_var,
       gtk_tree_store_set(tree_store, &iter,
                          COL_VEC_X, x,
                          COL_VEC_Y, y, -1);
-    } else if (WZ_IS_OBJ_SOUND(&obj->type)) {
+    } else if (obj->type == WZ_OBJ_AO) {
       wzao * ao = (wzao *) obj;
 
       char * format = "";
@@ -934,10 +902,10 @@ tree_view_var_on_row_activated(GtkTreeView * tree_view_var,
         ao_detail->idle_id = 0;
         ao_detail->thread = g_thread_new("mp3", thread_play_mp3, ao_detail);
       }
-    } else if (WZ_IS_OBJ_UOL(&obj->type)) {
+    } else if (obj->type == WZ_OBJ_UOL) {
       wzuol * uol = (wzuol *) obj;
       char * bytes = NULL;
-      wzchr * val = &uol->path;
+      wzstr * val = &uol->path;
       bytes = val->bytes;
       var_uol_detail * uol_detail = malloc(sizeof(* uol_detail));
       if (uol_detail == NULL) { printf("failed to malloc\n"); return; }
@@ -993,14 +961,14 @@ button_on_clicked(GtkButton * button, gpointer userdata) {
     }
     wzvar * var;
     gtk_tree_model_get(model, iter, COL_VAR_DATA, &var, -1);
-    if (!WZ_IS_VAR_OBJECT(var->type)) {
+    if (var->type != WZ_VAR_OBJ) {
       if (gtk_tree_store_remove(tree_store, iter) == TRUE)
         printf("failed to remove tree view node\n");
       continue;
     }
     wzobj * obj = var->val.obj;
-    if (!WZ_IS_OBJ_PROPERTY(&obj->type) &&
-        !WZ_IS_OBJ_CANVAS(&obj->type)) {
+    if (!(obj->type == WZ_OBJ_LIST ||
+          obj->type == WZ_OBJ_IMG)) {
       if (gtk_tree_store_remove(tree_store, iter) == TRUE)
         printf("failed to remove tree view node\n");
       wz_free_obj(obj);
@@ -1062,7 +1030,7 @@ tree_view_node_on_row_activated(GtkTreeView * tree_view_node,
   wznode * node;
   gtk_tree_model_get(model_node, &iter_node, COL_NODE_NAME, &name_bytes, -1);
   gtk_tree_model_get(model_node, &iter_node, COL_NODE_DATA, &node, -1);
-  if (!WZ_IS_NODE_FILE(node->type)) return;
+  if (node->type != WZ_NODE_FILE) return;
 
   GtkWidget * paned_var = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
   gtk_paned_set_position(GTK_PANED(paned_var), 200);
@@ -1160,23 +1128,23 @@ tree_view_node_on_row_activated(GtkTreeView * tree_view_node,
     wzvar * var = stack[--len];
     GtkTreeIter * iter = &iter_stack[--iter_len];
     if (var == node->data.var) iter = NULL;
-    if (WZ_IS_VAR_OBJECT(var->type)) {
+    if (var->type == WZ_VAR_OBJ) {
       if (wz_read_obj(&var->val.obj, var, node, file, ctx)) continue;
       wzobj * obj = var->val.obj;
       if (iter != NULL) {
         char * obj_type = "";
-        if (WZ_IS_OBJ_PROPERTY(&obj->type))    obj_type = "LIST";
-        else if (WZ_IS_OBJ_CANVAS(&obj->type)) obj_type = "IMAGE";
-        else if (WZ_IS_OBJ_CONVEX(&obj->type)) obj_type = "CONVEX";
-        else if (WZ_IS_OBJ_VECTOR(&obj->type)) obj_type = "VECTOR";
-        else if (WZ_IS_OBJ_SOUND(&obj->type))  obj_type = "AUDIO";
-        else if (WZ_IS_OBJ_UOL(&obj->type))    obj_type = "UOL";
+        if (obj->type == WZ_OBJ_LIST)      obj_type = "List";
+        else if (obj->type == WZ_OBJ_IMG)  obj_type = "Image";
+        else if (obj->type == WZ_OBJ_VEX)  obj_type = "Convex";
+        else if (obj->type == WZ_OBJ_VEC)  obj_type = "Vector";
+        else if (obj->type == WZ_OBJ_AO)   obj_type = "Audio";
+        else if (obj->type == WZ_OBJ_UOL)  obj_type = "Uol";
         gtk_tree_store_set(tree_store, iter,
                            COL_VAR_TYPE, obj_type,
                            COL_VAR_OBJ_TYPE, obj_type, -1);
       }
-      if (WZ_IS_OBJ_PROPERTY(&obj->type) ||
-          WZ_IS_OBJ_CANVAS(&obj->type)) {
+      if (obj->type == WZ_OBJ_LIST ||
+          obj->type == WZ_OBJ_IMG) {
         wzlist * list = (wzlist *) obj;
         GtkTreeIter parent;
         if (iter != NULL) parent = * iter, iter = &parent;
@@ -1184,14 +1152,14 @@ tree_view_node_on_row_activated(GtkTreeView * tree_view_node,
         for (uint32_t i = 0; i < list->len; i++) {
           wzvar * child = &list->vars[i];
           char * prim_type = "";
-          if (WZ_IS_VAR_NONE(child->type))         prim_type = "NONE";
-          else if (WZ_IS_VAR_INT16(child->type))   prim_type = "INT16";
-          else if (WZ_IS_VAR_INT32(child->type))   prim_type = "INT32";
-          else if (WZ_IS_VAR_INT64(child->type))   prim_type = "INT64";
-          else if (WZ_IS_VAR_FLOAT32(child->type)) prim_type = "FLOAT32";
-          else if (WZ_IS_VAR_FLOAT64(child->type)) prim_type = "FLOAT64";
-          else if (WZ_IS_VAR_STRING(child->type))  prim_type = "STRING";
-          else if (WZ_IS_VAR_OBJECT(child->type))  prim_type = "OBJECT";
+          if (child->type == WZ_VAR_NIL)       prim_type = "NIL";
+          else if (child->type == WZ_VAR_INT16) prim_type = "Int16";
+          else if (child->type == WZ_VAR_INT32) prim_type = "Int32";
+          else if (child->type == WZ_VAR_INT64) prim_type = "Int64";
+          else if (child->type == WZ_VAR_FLT32) prim_type = "Float32";
+          else if (child->type == WZ_VAR_FLT64) prim_type = "Float64";
+          else if (child->type == WZ_VAR_STR)   prim_type = "String";
+          else if (child->type == WZ_VAR_OBJ)   prim_type = "Object";
           GtkTreeIter * child_iter = &iter_stack[iter_len + list->len - i - 1];
           gtk_tree_store_append(tree_store, child_iter, iter);
           gtk_tree_store_set(tree_store, child_iter,
@@ -1248,7 +1216,7 @@ file_tree_store_cleanup(GtkWidget * tree_view_node) {
     }
     wznode * node;
     gtk_tree_model_get(model, iter, COL_NODE_DATA, &node, -1);
-    if (!WZ_IS_NODE_DIR(node->type)) {
+    if (node->type != WZ_NODE_DIR) {
       if (gtk_tree_store_remove(tree_store, iter) == TRUE)
         printf("failed to remove tree view node\n");
       continue;
@@ -1278,8 +1246,8 @@ file_tree_store_cleanup(GtkWidget * tree_view_node) {
 int
 sort_nodes(const void * a, const void * b) {
   const wznode * x = a, * y = b;
-  if (WZ_IS_NODE_FILE(x->type) ^ WZ_IS_NODE_FILE(y->type))
-    return WZ_IS_NODE_FILE(x->type) - WZ_IS_NODE_FILE(y->type);
+  if ((x->type == WZ_NODE_FILE) ^ (y->type == WZ_NODE_FILE))
+    return (x->type == WZ_NODE_FILE) - (y->type == WZ_NODE_FILE);
   else
     return strcmp(x->name.bytes, y->name.bytes);
 }
@@ -1328,7 +1296,7 @@ menu_item_open_on_activate(GtkMenuItem * menu_item, gpointer userdata) {
     wznode * node = stack[--len];
     GtkTreeIter * iter = &iter_stack[--iter_len];
     if (node == root) iter = NULL;
-    if (WZ_IS_NODE_DIR(node->type)) {
+    if (node->type == WZ_NODE_DIR) {
       if (wz_read_grp(&node->data.grp, node, file, ctx)) {
         printf("failed to read group!\n");
         continue;
